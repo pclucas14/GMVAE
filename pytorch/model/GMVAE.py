@@ -28,9 +28,9 @@ class GMVAE:
     self.decay_epoch = args.decay_epoch
     self.lr_decay = args.lr_decay
     self.w_cat = args.w_categ
-    self.w_gauss = args.w_gauss    
+    self.w_gauss = args.w_gauss
     self.w_rec = args.w_rec
-    self.rec_type = args.rec_type 
+    self.rec_type = args.rec_type
 
     self.num_classes = args.num_classes
     self.gaussian_size = args.gaussian_size
@@ -49,8 +49,8 @@ class GMVAE:
     self.metrics = Metrics()
 
     if self.cuda:
-      self.network = self.network.cuda() 
-  
+      self.network = self.network.cuda()
+
 
   def unlabeled_loss(self, data, out_net):
     """Method defining the loss functions derived from the variational lower bound
@@ -62,11 +62,11 @@ class GMVAE:
         loss_dic: (dict) contains the values of each loss function and predictions
     """
     # obtain network variables
-    z, data_recon = out_net['gaussian'], out_net['x_rec'] 
+    z, data_recon = out_net['gaussian'], out_net['x_rec']
     logits, prob_cat = out_net['logits'], out_net['prob_cat']
     y_mu, y_var = out_net['y_mean'], out_net['y_var']
     mu, var = out_net['mean'], out_net['var']
-    
+
     # reconstruction loss
     loss_rec = self.losses.reconstruction_loss(data, data_recon, self.rec_type)
 
@@ -82,14 +82,14 @@ class GMVAE:
     # obtain predictions
     _, predicted_labels = torch.max(logits, dim=1)
 
-    loss_dic = {'total': loss_total, 
+    loss_dic = {'total': loss_total,
                 'predicted_labels': predicted_labels,
                 'reconstruction': loss_rec,
                 'gaussian': loss_gauss,
                 'categorical': loss_cat}
     return loss_dic
-    
-    
+
+
   def train_epoch(self, optimizer, data_loader):
     """Train the model for one epoch
 
@@ -109,7 +109,7 @@ class GMVAE:
     accuracy = 0.
     nmi = 0.
     num_batches = 0.
-    
+
     true_labels_list = []
     predicted_labels_list = []
 
@@ -122,10 +122,10 @@ class GMVAE:
 
       # flatten data
       data = data.view(data.size(0), -1)
-      
+
       # forward call
-      out_net = self.network(data, self.gumbel_temp, self.hard_gumbel) 
-      unlab_loss_dic = self.unlabeled_loss(data, out_net) 
+      out_net = self.network(data, self.gumbel_temp, self.hard_gumbel)
+      unlab_loss_dic = self.unlabeled_loss(data, out_net)
       total = unlab_loss_dic['total']
 
       # accumulate values
@@ -136,21 +136,21 @@ class GMVAE:
 
       # perform backpropagation
       total.backward()
-      optimizer.step()  
+      optimizer.step()
 
       # save predicted and true labels
       predicted = unlab_loss_dic['predicted_labels']
       true_labels_list.append(labels)
-      predicted_labels_list.append(predicted)   
-   
-      num_batches += 1. 
+      predicted_labels_list.append(predicted)
+
+      num_batches += 1.
 
     # average per batch
     total_loss /= num_batches
     recon_loss /= num_batches
     gauss_loss /= num_batches
     cat_loss /= num_batches
-    
+
     # concat all true and predicted labels
     true_labels = torch.cat(true_labels_list, dim=0).cpu().numpy()
     predicted_labels = torch.cat(predicted_labels_list, dim=0).cpu().numpy()
@@ -168,7 +168,7 @@ class GMVAE:
     Args:
         data_loader: (DataLoader) corresponding loader containing the test/validation data
         return_loss: (boolean) whether to return the average loss values
-          
+
     Return:
         accuracy and nmi for the given test data
 
@@ -182,7 +182,7 @@ class GMVAE:
     accuracy = 0.
     nmi = 0.
     num_batches = 0.
-    
+
     true_labels_list = []
     predicted_labels_list = []
 
@@ -190,13 +190,13 @@ class GMVAE:
       for data, labels in data_loader:
         if self.cuda == 1:
           data = data.cuda()
-      
+
         # flatten data
         data = data.view(data.size(0), -1)
 
         # forward call
-        out_net = self.network(data, self.gumbel_temp, self.hard_gumbel) 
-        unlab_loss_dic = self.unlabeled_loss(data, out_net)  
+        out_net = self.network(data, self.gumbel_temp, self.hard_gumbel)
+        unlab_loss_dic = self.unlabeled_loss(data, out_net)
 
         # accumulate values
         total_loss += unlab_loss_dic['total'].item()
@@ -207,9 +207,9 @@ class GMVAE:
         # save predicted and true labels
         predicted = unlab_loss_dic['predicted_labels']
         true_labels_list.append(labels)
-        predicted_labels_list.append(predicted)   
-   
-        num_batches += 1. 
+        predicted_labels_list.append(predicted)
+
+        num_batches += 1.
 
     # average per batch
     if return_loss:
@@ -217,7 +217,7 @@ class GMVAE:
       recon_loss /= num_batches
       gauss_loss /= num_batches
       cat_loss /= num_batches
-    
+
     # concat all true and predicted labels
     true_labels = torch.cat(true_labels_list, dim=0).cpu().numpy()
     predicted_labels = torch.cat(predicted_labels_list, dim=0).cpu().numpy()
@@ -275,7 +275,7 @@ class GMVAE:
       val_history_nmi.append(val_nmi)
     return {'train_history_nmi' : train_history_nmi, 'val_history_nmi': val_history_nmi,
             'train_history_acc': train_history_acc, 'val_history_acc': val_history_acc}
-  
+
 
   def latent_features(self, data_loader, return_labels=False):
     """Obtain latent features learnt by the model
@@ -298,7 +298,7 @@ class GMVAE:
         if self.cuda == 1:
           data = data.cuda()
         # flatten data
-        data = data.view(data.size(0), -1)  
+        data = data.view(data.size(0), -1)
         out = self.network.inference(data, self.gumbel_temp, self.hard_gumbel)
         latent_feat = out['mean']
         end_ind = min(start_ind + data.size(0), N+1)
@@ -306,7 +306,7 @@ class GMVAE:
         # return true labels
         if return_labels:
           true_labels[start_ind:end_ind] = labels.cpu().numpy()
-        features[start_ind:end_ind] = latent_feat.cpu().detach().numpy()  
+        features[start_ind:end_ind] = latent_feat.cpu().detach().numpy()
         start_ind += data.size(0)
     if return_labels:
       return features, true_labels
@@ -319,25 +319,22 @@ class GMVAE:
     Args:
         data_loader: (DataLoader) loader containing the data
         sample_size: (int) size of random data to consider from data_loader
-      
+
     Returns:
         reconstructed: (array) array containing the reconstructed data
     """
     self.network.eval()
 
     # sample random data from loader
-    indices = np.random.randint(0, len(data_loader.dataset), size=sample_size)
-    test_random_loader = torch.utils.data.DataLoader(data_loader.dataset, batch_size=sample_size, sampler=SubsetRandomSampler(indices))
-  
-    # obtain values
-    it = iter(test_random_loader)
-    test_batch_data, _ = it.next()
-    original = test_batch_data.data.numpy()
-    if self.cuda:
-      test_batch_data = test_batch_data.cuda()  
+    for test_batch_data, _ in data_loader:
+        original = test_batch_data.numpy()
+        break
 
-    # obtain reconstructed data  
-    out = self.network(test_batch_data, self.gumbel_temp, self.hard_gumbel) 
+    if self.cuda:
+      test_batch_data = test_batch_data.cuda()
+
+    # obtain reconstructed data
+    out = self.network(test_batch_data, self.gumbel_temp, self.hard_gumbel)
     reconstructed = out['x_rec']
     return original, reconstructed.data.cpu().numpy()
 
@@ -355,7 +352,7 @@ class GMVAE:
     """
     # obtain the latent features
     features = self.latent_features(data_loader)
-    
+
     # plot only the first 2 dimensions
     fig = plt.figure(figsize=(8, 6))
     plt.scatter(features[:, 0], features[:, 1], c=labels, marker='o',
@@ -364,8 +361,8 @@ class GMVAE:
     if(save):
         fig.savefig('latent_space.png')
     return fig
-  
-  
+
+
   def random_generation(self, num_elements=1):
     """Random generation for each category
 
@@ -374,7 +371,7 @@ class GMVAE:
 
     Returns:
         generated data according to num_elements
-    """ 
+    """
     # categories for each element
     arr = np.array([])
     for i in range(self.num_classes):
@@ -382,10 +379,10 @@ class GMVAE:
     indices = arr.astype(int).tolist()
 
     categorical = F.one_hot(torch.tensor(indices), self.num_classes).float()
-    
+
     if self.cuda:
       categorical = categorical.cuda()
-  
+
     # infer the gaussian distribution according to the category
     mean, var = self.network.generative.pzy(categorical)
 
@@ -397,5 +394,5 @@ class GMVAE:
     # generate new samples with the given gaussian
     generated = self.network.generative.pxz(gaussian)
 
-    return generated.cpu().detach().numpy() 
+    return generated.cpu().detach().numpy()
 
